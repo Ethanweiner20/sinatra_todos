@@ -26,27 +26,27 @@ end
 
 # HELPERS
 
-helpers do
-  def list_name_error(list_name)
-    if !valid_size?(list_name)
-      :invalid_list_name
-    elsif !unique?(list_name)
-      :not_unique
-    end
+# list_name_error: String -> Error?
+# Returns an error symbol if the list name is invalid, otherwise returns nil
+def list_name_error(name)
+  if !valid_size?(name)
+    :invalid_list_name
+  elsif !unique?(name)
+    :not_unique
   end
+end
 
-  def valid_size?(name)
-    name.length.between?(1, 100)
-  end
+def valid_size?(name)
+  name.length.between?(1, 100)
+end
 
-  def unique?(name)
-    list_names = session[:lists].map { |list| list[:name] }
-    !list_names.include?(name)
-  end
+def unique?(name)
+  list_names = session[:lists].map { |list| list[:name] }
+  !list_names.include?(name)
+end
 
-  def set_flash(message, type)
-    session[:flash] = { message: MESSAGES[message], type: type }
-  end
+def set_flash(message, type)
+  session[:flash] = { message: MESSAGES[message], type: type }
 end
 
 # ROUTES
