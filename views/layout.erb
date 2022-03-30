@@ -11,6 +11,11 @@
     <header>
       <h1>Todo Tracker</h1>
     </header>
+    <% if session[:flash] %>
+      <div class="flash <%= session[:flash][:type].to_s %>">
+        <%= session.delete(:flash)[:message] %>
+      </div>
+    <% end %>
     <main>
       <%= yield %>
     </main>
