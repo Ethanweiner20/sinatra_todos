@@ -27,6 +27,14 @@ end
 # HELPERS
 
 helpers do
+  def list_name_error(list_name)
+    if !valid_size?(list_name)
+      :invalid_list_name
+    elsif !unique?(list_name)
+      :not_unique
+    end
+  end
+
   def valid_size?(name)
     name.length.between?(1, 100)
   end
@@ -61,12 +69,10 @@ end
 # Add a new list
 post "/lists" do
   list_name = params["list-name"].strip
+  error = list_name_error(list_name)
 
-  if !valid_size?(list_name)
-    set_flash(:invalid_list_name, :error)
-    erb :new_list
-  elsif !unique?(list_name)
-    set_flash(:not_unique, :error)
+  if error
+    set_flash(error, :error)
     erb :new_list
   else
     session[:lists] << { name: list_name, todos: [] }
