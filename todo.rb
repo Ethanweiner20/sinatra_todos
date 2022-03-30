@@ -11,11 +11,34 @@ configure do
   set :session_secret, 'secret'
 end
 
-# filters
+MESSAGES = {
+  list_created: "The list has been created.",
+  invalid_list_name: "List name must be between 1 and 100 characters.",
+  not_unique: "The list name must be unique."
+}
+
+# FILTERS
 
 before do
   # Initialize the empty session
   session[:lists] ||= []
+end
+
+# HELPERS
+
+helpers do
+  def valid_size?(name)
+    name.length.between?(1, 100)
+  end
+
+  def unique?(name)
+    list_names = session[:lists].map { |list| list[:name] }
+    !list_names.include?(name)
+  end
+
+  def set_flash(message, type)
+    session[:flash] = { message: MESSAGES[message], type: type }
+  end
 end
 
 # ROUTES
@@ -24,20 +47,30 @@ get "/" do
   redirect "/lists"
 end
 
-# Viewing Lists
-
+# View list of lists
 get "/lists" do
   @lists = session[:lists]
   erb :lists
 end
 
-# Adding Lists
-
+# Render new list form
 get "/lists/new" do
   erb :new_list
 end
 
+# Add a new list
 post "/lists" do
-  session[:lists] << { name: params["list-name"], todos: [] }
-  redirect "/lists"
+  list_name = params["list-name"].strip
+
+  if !valid_size?(list_name)
+    set_flash(:invalid_list_name, :error)
+    erb :new_list
+  elsif !unique?(list_name)
+    set_flash(:not_unique, :error)
+    erb :new_list
+  else
+    session[:lists] << { name: list_name, todos: [] }
+    set_flash(:list_created, :success)
+    redirect "/lists"
+  end
 end
