@@ -18,3 +18,10 @@ _Purpose of this Document_: List requirements, ideas, & planning for the applica
   - Input validation (between 1-200 chars)
     - Form validation
     - Path validation (valid list ids)
+
+## Sorting
+
+Options:
+
+1. Sort the session in place (destructive)
+2. Sort only for rendering purposes (non-destructive): Avoids session interference, probably less code needed

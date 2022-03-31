@@ -2,6 +2,7 @@ require "sinatra"
 require "sinatra/content_for"
 require "sinatra/reloader"
 require "tilt/erubis"
+require "pry"
 
 # CONFIGURATION
 
@@ -84,7 +85,7 @@ helpers do
   end
 
   def list_complete?(list)
-    list[:todos].length > 0 && list[:todos].all? { |todo| todo[:completed] }
+    todo_count(list) > 0 && remaining_todo_count(list) == 0
   end
 
   def todo_count(list)
@@ -93,6 +94,18 @@ helpers do
 
   def remaining_todo_count(list)
     list[:todos].count { |todo| !todo[:completed] }
+  end
+
+  def sort_lists(lists)
+    lists.partition { |list| !list_complete?(list) }.each do |partition|
+      partition.each { |item| yield(item, lists.index(item)) }
+    end
+  end
+
+  def sort_todos(todos)
+    todos.partition { |todo| !todo[:completed] }.each do |partition|
+      partition.each { |item| yield(item, todos.index(item)) }
+    end
   end
 end
 

@@ -15,13 +15,11 @@
   </form>
 </header>
 <ul>
-  <% @list[:todos].each_with_index do |todo, index| %>
+  <% sort_todos(@list[:todos]) do |todo, index| %>
     <li class="<%= todo[:completed] ? 'complete' : '' %>">
       <form action="/lists/<%= params[:list_id] %>/todos/<%= index %>"
             method="post" class="check">
-        <%# Hidden input (provides post data) %>
         <input type="hidden" name="completed" value="<%= !todo[:completed] %>">
-        <%# Checkbox (acts as submit button) %>
         <button type="submit">Complete</button>
       </form>
       <h3><%= todo[:name] %></h3>
