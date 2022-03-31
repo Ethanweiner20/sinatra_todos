@@ -25,4 +25,13 @@
     </li>
   <% end %>
 </ul>
+<form action="/lists/<%= params[:id] %>/todos" method="post">
+  <dl>
+    <dt><label for="todo-name">Enter a new todo item:</label></dt>
+    <dd><input type="text" name="todo-name" id="todo-name" placeholder="Something to do" /></dd>
+  </dl>
+  <fieldset class="actions">
+    <input type="submit" value="Add">
+  </fieldset>
+</form>
 </section>

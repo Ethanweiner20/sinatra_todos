@@ -27,6 +27,11 @@ before do
   session[:lists] ||= []
 end
 
+# Create a list hook for any routes involving a list
+before /\/lists\/\d+.*/ do
+  @list = session[:lists][params[:id].to_i]
+end
+
 # HELPERS
 
 # list_name_error: String -> Error?
@@ -71,7 +76,6 @@ end
 
 # View singular list
 get "/lists/:id" do
-  @list = session[:lists][params[:id].to_i]
   erb :list
 end
 
@@ -91,25 +95,17 @@ post "/lists" do
   end
 end
 
-post "/lists/:id/destroy" do
-  session[:lists].delete_at(params[:id].to_i)
-  set_flash(:list_deleted, :success)
-  redirect "/lists"
-end
 
 # Render edit list form
 get "/lists/:id/edit" do
-  @list = session[:lists][params[:id].to_i]
   erb :edit_list
 end
 
 # Edit existing list
-post "/lists/:id" do
-  @list = session[:lists][params[:id].to_i]
-
+post "/lists/:id" do  
   list_name = params["list-name"].strip
   error = list_name_error(list_name)
-
+  
   if error
     set_flash(error, :error)
     erb :edit_list
@@ -119,3 +115,20 @@ post "/lists/:id" do
     redirect "/lists/#{params[:id]}"
   end
 end
+
+# Delete an existing list
+post "/lists/:id/destroy" do
+  session[:lists].delete_at(params[:id].to_i)
+  set_flash(:list_deleted, :success)
+  redirect "/lists"
+end
+
+# Add a todo (to the current list)
+post "/lists/:id/todos" do
+  todo_name = params["todo-name"]
+  @list[:todos] << { name: todo_name, completed: false }
+
+  redirect "/lists/#{params[:id]}"
+end
+
+# Next: Extract list assignment to a before filter
