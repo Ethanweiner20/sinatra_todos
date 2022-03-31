@@ -6,13 +6,13 @@
     <h2><%= @list[:name] %></h2>
     <ul>
       <form action="/" method="post">
-        <li><a class="edit" href="/lists/<%= params[:id] %>/edit">Edit List</a></li>
+        <li><a class="edit" href="/lists/<%= params[:list_id] %>/edit">Edit List</a></li>
       </form>
     </ul>
   </form>
 </header>
 <ul>
-  <% @list[:todos].each do |todo| %>
+  <% @list[:todos].each_with_index do |todo, index| %>
     <li>
       <form action="#" method="post" class="check">
         <input type="hidden" name="completed" value="<%= todo[:completed] %>">
@@ -25,10 +25,14 @@
     </li>
   <% end %>
 </ul>
-<form action="/lists/<%= params[:id] %>/todos" method="post">
+<form action="/lists/<%= params[:list_id] %>/todos" method="post">
   <dl>
     <dt><label for="todo-name">Enter a new todo item:</label></dt>
-    <dd><input type="text" name="todo-name" id="todo-name" placeholder="Something to do" /></dd>
+    <dd>
+      <input type="text" name="todo-name" id="todo-name" 
+        placeholder="Something to do"
+        value="<%= @previous_todo_name ? @previous_todo_name : '' %>"/>
+    </dd>
   </dl>
   <fieldset class="actions">
     <input type="submit" value="Add">
