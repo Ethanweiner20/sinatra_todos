@@ -18,11 +18,15 @@ MESSAGES = {
   list_edited: "The list has been updated.",
   list_deleted: "The list has been deleted.",
   todo_added: "The todo was added.",
+  todo_deleted: "The todo has been deleted.",
+  todo_updated: "The todo has been updated.",
+  todos_completed: "All todos have been completed.",
 
   # Error
   invalid_list_name: "List name must be between 1 and 100 characters.",
   not_unique: "The list name must be unique.",
-  invalid_todo_name: "Todo must be between 1 and 100 characters."
+  invalid_todo_name: "Todo must be between 1 and 100 characters.",
+  invalid_list_id: "That list doesn't exist."
 }
 
 # FILTERS
@@ -32,9 +36,13 @@ before do
   session[:lists] ||= []
 end
 
-# Create a list hook for any routes involving a list
-before %r(\/lists\/\d+.*) do
+# Initialize @list and @todo for relevant routes
+before "/lists/:list_id*" do
   @list = session[:lists][params[:list_id].to_i]
+end
+
+before "/lists/:list_id/todos/:todo_id*" do
+  @todo = @list[:todos][params[:todo_id].to_i]
 end
 
 # HELPERS
@@ -70,6 +78,24 @@ def set_flash(message, type)
   session[:flash] = { message: MESSAGES[message], type: type }
 end
 
+helpers do
+  def list_class(list)
+    "complete" if list_complete?(list)
+  end
+
+  def list_complete?(list)
+    list[:todos].length > 0 && list[:todos].all? { |todo| todo[:completed] }
+  end
+
+  def todo_count(list)
+    list[:todos].count
+  end
+
+  def remaining_todo_count(list)
+    list[:todos].count { |todo| !todo[:completed] }
+  end
+end
+
 # ROUTES
 
 get "/" do
@@ -89,7 +115,12 @@ end
 
 # View singular list
 get "/lists/:list_id" do
-  erb :list
+  if @list
+    erb :list
+  else
+    set_flash(:invalid_list_id, :error)
+    redirect "/lists"
+  end
 end
 
 # Add a new list
@@ -142,9 +173,6 @@ post "/lists/:list_id/todos" do
   error = todo_name_error(todo_name)
   if error
     set_flash(error, :error)
-
-    # Capture posted values for re-rendering
-    @previous_todo_name = params["todo-name"]
     erb :list
   else
     @list[:todos] << { name: todo_name, completed: false }
@@ -153,4 +181,25 @@ post "/lists/:list_id/todos" do
   end
 end
 
-# Next: Extract list assignment to a before filter
+# Delete a todo (from the current list)
+post "/lists/:list_id/todos/:todo_id/destroy" do
+  @list[:todos].delete_at(params[:todo_id].to_i)
+  set_flash(:todo_deleted, :success)
+  redirect "/lists/#{params[:list_id]}"
+end
+
+# Update the status of a todo
+# Options: Toggle the todo OR explicitly set value of todo (better)
+post "/lists/:list_id/todos/:todo_id" do
+  completed = params[:completed] == 'true'
+  @todo[:completed] = completed
+  set_flash(:todo_updated, :success)
+  redirect "/lists/#{params[:list_id]}"
+end
+
+# Complete all todos
+post "/lists/:list_id/complete" do
+  @list[:todos].each { |todo| todo[:completed] = true }
+  set_flash(:todos_completed, :success)
+  redirect "/lists/#{params[:list_id]}"
+end

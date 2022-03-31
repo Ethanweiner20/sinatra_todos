@@ -1,25 +1,32 @@
 <% content_for :header_links do %>
-  <a href="/lists">All Lists</a>
+  <a href="/lists" class="list">All Lists</a>
 <% end %>
-<section id="todos">
+<section id="todos" class="<%= list_class(@list) %>">
   <header>
     <h2><%= @list[:name] %></h2>
     <ul>
-      <form action="/" method="post">
-        <li><a class="edit" href="/lists/<%= params[:list_id] %>/edit">Edit List</a></li>
-      </form>
+      <li>
+        <form action="/lists/<%= params[:list_id] %>/complete" method="post">
+          <button class="check" type="submit">Complete All</button>
+        </form>
+      </li>
+      <li><a class="edit" href="/lists/<%= params[:list_id] %>/edit">Edit List</a></li>
     </ul>
   </form>
 </header>
 <ul>
   <% @list[:todos].each_with_index do |todo, index| %>
-    <li>
-      <form action="#" method="post" class="check">
-        <input type="hidden" name="completed" value="<%= todo[:completed] %>">
+    <li class="<%= todo[:completed] ? 'complete' : '' %>">
+      <form action="/lists/<%= params[:list_id] %>/todos/<%= index %>"
+            method="post" class="check">
+        <%# Hidden input (provides post data) %>
+        <input type="hidden" name="completed" value="<%= !todo[:completed] %>">
+        <%# Checkbox (acts as submit button) %>
         <button type="submit">Complete</button>
       </form>
       <h3><%= todo[:name] %></h3>
-      <form action="#" method="post" class="delete">
+      <form action="/lists/<%= params[:list_id] %>/todos/<%= index %>/destroy"
+            method="post" class="delete">
         <button type="submit">Delete</button>
       </form>
     </li>
@@ -31,7 +38,7 @@
     <dd>
       <input type="text" name="todo-name" id="todo-name" 
         placeholder="Something to do"
-        value="<%= @previous_todo_name ? @previous_todo_name : '' %>"/>
+        value="<%= params["todo-name"] %>"/>
     </dd>
   </dl>
   <fieldset class="actions">
