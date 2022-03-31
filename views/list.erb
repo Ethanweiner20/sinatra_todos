@@ -1,0 +1,28 @@
+<% content_for :header_links do %>
+  <a href="/lists">All Lists</a>
+<% end %>
+<section id="todos">
+  <header>
+    <h2><%= @list[:name] %></h2>
+    <ul>
+      <form action="/" method="post">
+        <li><a class="edit" href="/lists/<%= params[:id] %>/edit">Edit List</a></li>
+      </form>
+    </ul>
+  </form>
+</header>
+<ul>
+  <% @list[:todos].each do |todo| %>
+    <li>
+      <form action="#" method="post" class="check">
+        <input type="hidden" name="completed" value="<%= todo[:completed] %>">
+        <button type="submit">Complete</button>
+      </form>
+      <h3><%= todo[:name] %></h3>
+      <form action="#" method="post" class="delete">
+        <button type="submit">Delete</button>
+      </form>
+    </li>
+  <% end %>
+</ul>
+</section>

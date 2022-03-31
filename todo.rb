@@ -1,4 +1,5 @@
 require "sinatra"
+require "sinatra/content_for"
 require "sinatra/reloader"
 require "tilt/erubis"
 
@@ -13,6 +14,8 @@ end
 
 MESSAGES = {
   list_created: "The list has been created.",
+  list_edited: "The list has been updated.",
+  list_deleted: "The list has been deleted.",
   invalid_list_name: "List name must be between 1 and 100 characters.",
   not_unique: "The list name must be unique."
 }
@@ -66,9 +69,16 @@ get "/lists/new" do
   erb :new_list
 end
 
+# View singular list
+get "/lists/:id" do
+  @list = session[:lists][params[:id].to_i]
+  erb :list
+end
+
 # Add a new list
 post "/lists" do
   list_name = params["list-name"].strip
+
   error = list_name_error(list_name)
 
   if error
@@ -78,5 +88,34 @@ post "/lists" do
     session[:lists] << { name: list_name, todos: [] }
     set_flash(:list_created, :success)
     redirect "/lists"
+  end
+end
+
+post "/lists/:id/destroy" do
+  session[:lists].delete_at(params[:id].to_i)
+  set_flash(:list_deleted, :success)
+  redirect "/lists"
+end
+
+# Render edit list form
+get "/lists/:id/edit" do
+  @list = session[:lists][params[:id].to_i]
+  erb :edit_list
+end
+
+# Edit existing list
+post "/lists/:id" do
+  @list = session[:lists][params[:id].to_i]
+
+  list_name = params["list-name"].strip
+  error = list_name_error(list_name)
+
+  if error
+    set_flash(error, :error)
+    erb :edit_list
+  else
+    @list[:name] = list_name
+    set_flash(:list_edited, :success)
+    redirect "/lists/#{params[:id]}"
   end
 end
