@@ -7,9 +7,11 @@ require "tilt/erubis"
 
 configure do
   enable :sessions
-
-  # Disables random secret creation by Sinatra; enables persistent secret
   set :session_secret, 'secret'
+end
+
+configure do
+  set :erb, escape_html: true
 end
 
 MESSAGES = {
