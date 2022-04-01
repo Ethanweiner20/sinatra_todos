@@ -28,7 +28,7 @@ MESSAGES = {
   invalid_list_name: "List name must be between 1 and 100 characters.",
   not_unique: "The list name must be unique.",
   invalid_todo_name: "Todo must be between 1 and 100 characters.",
-  invalid_list_id: "That list doesn't exist."
+  invalid_list_id: "The specified list was not found."
 }
 
 # FILTERS
@@ -40,7 +40,7 @@ end
 
 # Initialize @list and @todo for relevant routes
 before "/lists/:list_id*" do
-  @list = session[:lists][params[:list_id].to_i]
+  @list = load_list(params[:list_id].to_i)
 end
 
 before "/lists/:list_id/todos/:todo_id*" do
@@ -48,6 +48,17 @@ before "/lists/:list_id/todos/:todo_id*" do
 end
 
 # HELPERS
+
+# load_list
+# Attemps
+
+def load_list(index)
+  list = session[:lists][index]
+  return list if list
+
+  set_flash(:invalid_list_id, :error)
+  redirect "/lists"
+end
 
 # list_name_error: String -> Maybe Symbol
 # Returns an error symbol if the list name is invalid, otherwise returns nil
@@ -129,12 +140,7 @@ end
 
 # View singular list
 get "/lists/:list_id" do
-  if @list
-    erb :list
-  else
-    set_flash(:invalid_list_id, :error)
-    redirect "/lists"
-  end
+  erb :list
 end
 
 # Add a new list
