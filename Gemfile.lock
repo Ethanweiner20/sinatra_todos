@@ -5,6 +5,9 @@ GEM
     erubis (2.7.0)
     htmlbeautifier (1.4.1)
     multi_json (1.15.0)
+    nio4r (2.5.8)
+    puma (5.6.4)
+      nio4r (~> 2.0)
     rack (1.6.13)
     rack-protection (1.5.5)
       rack
@@ -29,8 +32,12 @@ PLATFORMS
 DEPENDENCIES
   erubis
   htmlbeautifier
+  puma
   sinatra (~> 1.4.7)
   sinatra-contrib
+
+RUBY VERSION
+   ruby 3.0.2p107
 
 BUNDLED WITH
    2.3.7
