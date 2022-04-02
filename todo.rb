@@ -182,8 +182,13 @@ end
 # Delete an existing list
 post "/lists/:list_id/destroy" do
   session[:lists].delete_at(params[:list_id].to_i)
-  set_flash(:list_deleted, :success)
-  redirect "/lists"
+  if request.xhr?
+    status 200
+    "/lists"
+  else
+    set_flash(:list_deleted, :success)
+    redirect "/lists"
+  end
 end
 
 # Add a todo (to the current list)
@@ -204,8 +209,13 @@ end
 # Delete a todo (from the current list)
 post "/lists/:list_id/todos/:todo_id/destroy" do
   @list[:todos].delete_at(params[:todo_id].to_i)
-  set_flash(:todo_deleted, :success)
-  redirect "/lists/#{params[:list_id]}"
+
+  if request.xhr?
+    status 204
+  else
+    set_flash(:todo_deleted, :success)
+    redirect "/lists/#{params[:list_id]}"
+  end
 end
 
 # Update the status of a todo

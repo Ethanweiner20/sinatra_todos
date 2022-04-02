@@ -1,14 +1,23 @@
 $(function () {
-  // Require confirmation for all deletions
-
-  // $("form.delete").submit(function () {
-  //   return confirm("Are you sure?"); // Returns true only if confirmed
-  // });
-
   $("form.delete").submit(function (event) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (confirm("Are you sure?")) this.submit();
+    const form = $(this);
+    const request = $.ajax({
+      url: form.attr("action"),
+      method: form.attr("method"),
+    });
+
+    // Callback on response
+    request.done(function (data, textStatus, jqXHR) {
+      if (jqXHR.status === 204) {
+        // Remove todo
+        form.parent("li").remove();
+      } else if (jqXHR.status === 200) {
+        // Redirect to page
+        document.location = data;
+      }
+    });
   });
 });
