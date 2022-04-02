@@ -44,7 +44,7 @@ before %r{/lists/([\d+]).*} do |list_id|
 end
 
 before "/lists/:list_id/todos/:todo_id*" do
-  @todo = @list[:todos][params[:todo_id].to_i]
+  @todo = @list[:todos].find { |todo| todo[:id] == params[:todo_id].to_i }
 end
 
 # HELPERS
@@ -52,9 +52,9 @@ end
 # load_list
 # Attemps
 
-def load_list(index)
-  list = session[:lists][index]
-  return list if list
+def load_list(id)
+  candidate_list = session[:lists].find { |list| list[:id] == id }
+  return candidate_list if candidate_list
 
   set_flash(:invalid_list_id, :error)
   redirect "/lists"
@@ -91,6 +91,13 @@ def set_flash(message, type)
   session[:flash] = { message: MESSAGES[message], type: type }
 end
 
+# Determine the next id for the todos
+# Assumes that each item in `items` has an `:id` attribute
+def next_id(items)
+  max_id = items.map { |item| item[:id] }.max || 0
+  max_id + 1
+end
+
 helpers do
   def list_class(list)
     "complete" if list_complete?(list)
@@ -108,15 +115,15 @@ helpers do
     list[:todos].count { |todo| !todo[:completed] }
   end
 
-  def sort_lists(lists)
+  def sort_lists(lists, &block)
     lists.partition { |list| !list_complete?(list) }.each do |partition|
-      partition.each { |item| yield(item, lists.index(item)) }
+      partition.each(&block)
     end
   end
 
-  def sort_todos(todos)
+  def sort_todos(todos, &block)
     todos.partition { |todo| !todo[:completed] }.each do |partition|
-      partition.each { |item| yield(item, todos.index(item)) }
+      partition.each(&block)
     end
   end
 end
@@ -153,7 +160,7 @@ post "/lists" do
     set_flash(error, :error)
     erb :new_list
   else
-    session[:lists] << { name: list_name, todos: [] }
+    session[:lists] << { id: next_id(session[:lists]), name: list_name, todos: [] }
     set_flash(:list_created, :success)
     redirect "/lists"
   end
@@ -181,7 +188,7 @@ end
 
 # Delete an existing list
 post "/lists/:list_id/destroy" do
-  session[:lists].delete_at(params[:list_id].to_i)
+  session[:lists].delete_if { |list| list[:id] == params[:list_id].to_i }
   if request.xhr?
     status 200
     "/lists"
@@ -200,7 +207,8 @@ post "/lists/:list_id/todos" do
     set_flash(error, :error)
     erb :list
   else
-    @list[:todos] << { name: todo_name, completed: false }
+    id = next_id(@list[:todos])
+    @list[:todos] << { id: id, name: todo_name, completed: false }
     set_flash(:todo_added, :success)
     redirect "/lists/#{params[:list_id]}"
   end
@@ -208,7 +216,7 @@ end
 
 # Delete a todo (from the current list)
 post "/lists/:list_id/todos/:todo_id/destroy" do
-  @list[:todos].delete_at(params[:todo_id].to_i)
+  @list[:todos].delete_if { |todo| todo[:id] == params[:todo_id].to_i }
 
   if request.xhr?
     status 204

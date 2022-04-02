@@ -2,11 +2,9 @@
   <a href="/lists/new" class="add">New List</a>
 <% end %>
 <ul id="lists">
-  <%# Problem: We need to sort the list while maintaining original indice %>
-  <%# Idea: Use a block to continue to yield the proper index? %>
-  <% sort_lists(@lists) do |list, index| %>
+  <% sort_lists(@lists) do |list| %>
     <li class="<%= list_class(list) %>">
-      <a href="/lists/<%= index %>">
+      <a href="/lists/<%= list[:id] %>">
         <h2><%= list[:name] %></h2>
         <p>
           <%= remaining_todo_count(list) %> / <%= todo_count(list) %>
