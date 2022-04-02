@@ -39,8 +39,8 @@ before do
 end
 
 # Initialize @list and @todo for relevant routes
-before "/lists/:list_id*" do
-  @list = load_list(params[:list_id].to_i)
+before %r{/lists/([\d+]).*} do |list_id|
+  @list = load_list(list_id.to_i)
 end
 
 before "/lists/:list_id/todos/:todo_id*" do
