@@ -1,18 +1,19 @@
 require "sinatra"
 require "sinatra/content_for"
-require "sinatra/reloader" if development?
 require "tilt/erubis"
-require_relative "session_persistence"
+require_relative "database_persistence"
 
 # CONFIGURATION
 
 configure do
   enable :sessions
   set :session_secret, 'secret'
+  set :erb, escape_html: true
 end
 
-configure do
-  set :erb, escape_html: true
+configure(:development) do
+  require "sinatra/reloader"
+  also_reload './*.rb'
 end
 
 MESSAGES = {
@@ -35,8 +36,11 @@ MESSAGES = {
 # FILTERS
 
 before do
-  # Initialize the empty session
-  @storage = SessionPersistence.new(session)
+  @storage = DatabasePersistence.new(logger)
+end
+
+after do
+  @storage.disconnect
 end
 
 # HELPERS
