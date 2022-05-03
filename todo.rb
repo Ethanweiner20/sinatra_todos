@@ -35,28 +35,96 @@ MESSAGES = {
 
 before do
   # Initialize the empty session
-  session[:lists] ||= []
-end
-
-# Initialize @list and @todo for relevant routes
-before %r{/lists/([\d+]).*} do |list_id|
-  @list = load_list(list_id.to_i)
-end
-
-before "/lists/:list_id/todos/:todo_id*" do
-  @todo = @list[:todos].find { |todo| todo[:id] == params[:todo_id].to_i }
+  @storage = SessionPersistence.new(session)
 end
 
 # HELPERS
 
-# load_list
-# Attemps
+class SessionPersistence
+  def initialize(session)
+    @session = session
+    @session[:lists] ||= []
+  end
+
+  # List storage
+
+  def find_list(id)
+    all_lists.find { |list| list[:id] == id }
+  end
+
+  def all_lists
+    @session[:lists]
+  end
+
+  def create_list(name)
+    @session[:lists] << { id: next_id(all_lists), name: name, todos: [] }
+  end
+
+  def delete_list(id)
+    @session[:lists].delete_if { |list| list[:id] == id }
+  end
+
+  def update_list_name(id, new_name)
+    list = find_list(id)
+    list[:name] = new_name
+  end
+
+  # Managing todos
+
+  def create_todo(list_id, todo_name)
+    list = find_list(list_id)
+    todo = { id: next_id(list[:todos]), name: todo_name, completed: false }
+    list[:todos] << todo
+  end
+
+  def delete_todo(list_id, todo_id)
+    list = find_list(list_id)
+    list[:todos].delete_if { |todo| todo[:id] == todo_id }
+  end
+
+  def complete_todos(list_id)
+    list = find_list(list_id)
+    list[:todos].each { |todo| todo[:completed] = true }
+  end
+
+  def find_todo(list, todo_id)
+    list[:todos].find { |todo| todo[:id] == todo_id }
+  end
+
+  def set_todo_status(list_id, todo_id, new_status)
+    list = find_list(list_id)
+    todo = find_todo(list, todo_id)
+    todo[:completed] = new_status
+  end
+
+  # Flash storage
+
+  def flash
+    @session[:flash]
+  end
+
+  def set_flash(message, type)
+    @session[:flash] = { message: MESSAGES[message], type: type }
+  end
+
+  def delete_flash
+    @session.delete(:flash)
+  end
+
+  private
+
+  # Assumes that each item in `items` has an `:id` attribute
+  def next_id(items)
+    max_id = items.map { |item| item[:id] }.max || 0
+    max_id + 1
+  end
+end
 
 def load_list(id)
-  candidate_list = session[:lists].find { |list| list[:id] == id }
+  candidate_list = @storage.find_list(id)
   return candidate_list if candidate_list
 
-  set_flash(:invalid_list_id, :error)
+  @storage.set_flash(:invalid_list_id, :error)
   redirect "/lists"
 end
 
@@ -83,19 +151,8 @@ def valid_length?(name)
 end
 
 def unique_list_name?(name)
-  list_names = session[:lists].map { |list| list[:name] }
+  list_names = @storage.all_lists.map { |list| list[:name] }
   !list_names.include?(name)
-end
-
-def set_flash(message, type)
-  session[:flash] = { message: MESSAGES[message], type: type }
-end
-
-# Determine the next id for the todos
-# Assumes that each item in `items` has an `:id` attribute
-def next_id(items)
-  max_id = items.map { |item| item[:id] }.max || 0
-  max_id + 1
 end
 
 helpers do
@@ -136,7 +193,7 @@ end
 
 # View list of lists
 get "/lists" do
-  @lists = session[:lists]
+  @lists = @storage.all_lists
   erb :lists
 end
 
@@ -147,6 +204,9 @@ end
 
 # View singular list
 get "/lists/:list_id" do
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
   erb :list
 end
 
@@ -157,17 +217,20 @@ post "/lists" do
   error = list_name_error(list_name)
 
   if error
-    set_flash(error, :error)
+    @storage.set_flash(error, :error)
     erb :new_list
   else
-    session[:lists] << { id: next_id(session[:lists]), name: list_name, todos: [] }
-    set_flash(:list_created, :success)
+    @storage.create_list(list_name)
+    @storage.set_flash(:list_created, :success)
     redirect "/lists"
   end
 end
 
 # Render edit list form
 get "/lists/:list_id/edit" do
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
   erb :edit_list
 end
 
@@ -175,25 +238,30 @@ end
 post "/lists/:list_id" do
   list_name = params["list-name"].strip
   error = list_name_error(list_name)
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
 
   if error
-    set_flash(error, :error)
+    @storage.set_flash(error, :error)
     erb :edit_list
   else
-    @list[:name] = list_name
-    set_flash(:list_edited, :success)
+    @storage.update_list_name(@list_id, list_name)
+    @storage.set_flash(:list_edited, :success)
     redirect "/lists/#{params[:list_id]}"
   end
 end
 
 # Delete an existing list
 post "/lists/:list_id/destroy" do
-  session[:lists].delete_if { |list| list[:id] == params[:list_id].to_i }
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
+  @storage.delete_list(params[:list_id].to_i)
   if request.xhr?
     status 200
     "/lists"
   else
-    set_flash(:list_deleted, :success)
+    @storage.set_flash(:list_deleted, :success)
     redirect "/lists"
   end
 end
@@ -201,27 +269,31 @@ end
 # Add a todo (to the current list)
 post "/lists/:list_id/todos" do
   todo_name = params["todo-name"].strip
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
 
   error = todo_name_error(todo_name)
   if error
-    set_flash(error, :error)
+    @storage.set_flash(error, :error)
     erb :list
   else
-    id = next_id(@list[:todos])
-    @list[:todos] << { id: id, name: todo_name, completed: false }
-    set_flash(:todo_added, :success)
+    @storage.create_todo(@list_id, todo_name)
+    @storage.set_flash(:todo_added, :success)
     redirect "/lists/#{params[:list_id]}"
   end
 end
 
 # Delete a todo (from the current list)
 post "/lists/:list_id/todos/:todo_id/destroy" do
-  @list[:todos].delete_if { |todo| todo[:id] == params[:todo_id].to_i }
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
+  @storage.delete_todo(@list_id, params[:todo_id].to_i)
 
   if request.xhr?
     status 204
   else
-    set_flash(:todo_deleted, :success)
+    @storage.set_flash(:todo_deleted, :success)
     redirect "/lists/#{params[:list_id]}"
   end
 end
@@ -229,15 +301,24 @@ end
 # Update the status of a todo
 # Options: Toggle the todo OR explicitly set value of todo (better)
 post "/lists/:list_id/todos/:todo_id" do
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
+  todo_id = params[:todo_id].to_i
+
   completed = params[:completed] == 'true'
-  @todo[:completed] = completed
-  set_flash(:todo_updated, :success)
+
+  @storage.set_todo_status(@list_id, todo_id, completed)
+  @storage.set_flash(:todo_updated, :success)
   redirect "/lists/#{params[:list_id]}"
 end
 
 # Complete all todos
 post "/lists/:list_id/complete" do
-  @list[:todos].each { |todo| todo[:completed] = true }
-  set_flash(:todos_completed, :success)
+  @list_id = params[:list_id].to_i
+  @list = load_list(@list_id)
+
+  @storage.complete_todos(@list_id)
+  @storage.set_flash(:todos_completed, :success)
   redirect "/lists/#{params[:list_id]}"
 end

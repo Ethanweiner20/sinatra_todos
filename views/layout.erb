@@ -16,9 +16,9 @@
         <%== yield_content :header_links %>
       </div>
     </header>
-    <% if session[:flash] %>
-      <div class="flash <%= session[:flash][:type].to_s %>">
-        <%= session.delete(:flash)[:message] %>
+    <% if @storage.flash %>
+      <div class="flash <%= @storage.flash[:type].to_s %>">
+        <%= @storage.delete_flash()[:message] %>
       </div>
     <% end %>
     <main>
