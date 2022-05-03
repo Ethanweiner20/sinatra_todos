@@ -2,6 +2,7 @@ require "sinatra"
 require "sinatra/content_for"
 require "sinatra/reloader" if development?
 require "tilt/erubis"
+require_relative "session_persistence"
 
 # CONFIGURATION
 
@@ -40,91 +41,15 @@ end
 
 # HELPERS
 
-class SessionPersistence
-  def initialize(session)
-    @session = session
-    @session[:lists] ||= []
-  end
-
-  # List storage
-
-  def find_list(id)
-    all_lists.find { |list| list[:id] == id }
-  end
-
-  def all_lists
-    @session[:lists]
-  end
-
-  def create_list(name)
-    @session[:lists] << { id: next_id(all_lists), name: name, todos: [] }
-  end
-
-  def delete_list(id)
-    @session[:lists].delete_if { |list| list[:id] == id }
-  end
-
-  def update_list_name(id, new_name)
-    list = find_list(id)
-    list[:name] = new_name
-  end
-
-  # Managing todos
-
-  def create_todo(list_id, todo_name)
-    list = find_list(list_id)
-    todo = { id: next_id(list[:todos]), name: todo_name, completed: false }
-    list[:todos] << todo
-  end
-
-  def delete_todo(list_id, todo_id)
-    list = find_list(list_id)
-    list[:todos].delete_if { |todo| todo[:id] == todo_id }
-  end
-
-  def complete_todos(list_id)
-    list = find_list(list_id)
-    list[:todos].each { |todo| todo[:completed] = true }
-  end
-
-  def find_todo(list, todo_id)
-    list[:todos].find { |todo| todo[:id] == todo_id }
-  end
-
-  def set_todo_status(list_id, todo_id, new_status)
-    list = find_list(list_id)
-    todo = find_todo(list, todo_id)
-    todo[:completed] = new_status
-  end
-
-  # Flash storage
-
-  def flash
-    @session[:flash]
-  end
-
-  def set_flash(message, type)
-    @session[:flash] = { message: MESSAGES[message], type: type }
-  end
-
-  def delete_flash
-    @session.delete(:flash)
-  end
-
-  private
-
-  # Assumes that each item in `items` has an `:id` attribute
-  def next_id(items)
-    max_id = items.map { |item| item[:id] }.max || 0
-    max_id + 1
-  end
+def set_flash(message, type)
+  session[:flash] = { message: MESSAGES[message], type: type }
 end
 
 def load_list(id)
   candidate_list = @storage.find_list(id)
   return candidate_list if candidate_list
 
-  @storage.set_flash(:invalid_list_id, :error)
+  set_flash(:invalid_list_id, :error)
   redirect "/lists"
 end
 
@@ -217,11 +142,11 @@ post "/lists" do
   error = list_name_error(list_name)
 
   if error
-    @storage.set_flash(error, :error)
+    set_flash(error, :error)
     erb :new_list
   else
     @storage.create_list(list_name)
-    @storage.set_flash(:list_created, :success)
+    set_flash(:list_created, :success)
     redirect "/lists"
   end
 end
@@ -242,11 +167,11 @@ post "/lists/:list_id" do
   @list = load_list(@list_id)
 
   if error
-    @storage.set_flash(error, :error)
+    set_flash(error, :error)
     erb :edit_list
   else
     @storage.update_list_name(@list_id, list_name)
-    @storage.set_flash(:list_edited, :success)
+    set_flash(:list_edited, :success)
     redirect "/lists/#{params[:list_id]}"
   end
 end
@@ -261,7 +186,7 @@ post "/lists/:list_id/destroy" do
     status 200
     "/lists"
   else
-    @storage.set_flash(:list_deleted, :success)
+    set_flash(:list_deleted, :success)
     redirect "/lists"
   end
 end
@@ -274,11 +199,11 @@ post "/lists/:list_id/todos" do
 
   error = todo_name_error(todo_name)
   if error
-    @storage.set_flash(error, :error)
+    set_flash(error, :error)
     erb :list
   else
     @storage.create_todo(@list_id, todo_name)
-    @storage.set_flash(:todo_added, :success)
+    set_flash(:todo_added, :success)
     redirect "/lists/#{params[:list_id]}"
   end
 end
@@ -293,7 +218,7 @@ post "/lists/:list_id/todos/:todo_id/destroy" do
   if request.xhr?
     status 204
   else
-    @storage.set_flash(:todo_deleted, :success)
+    set_flash(:todo_deleted, :success)
     redirect "/lists/#{params[:list_id]}"
   end
 end
@@ -309,7 +234,7 @@ post "/lists/:list_id/todos/:todo_id" do
   completed = params[:completed] == 'true'
 
   @storage.set_todo_status(@list_id, todo_id, completed)
-  @storage.set_flash(:todo_updated, :success)
+  set_flash(:todo_updated, :success)
   redirect "/lists/#{params[:list_id]}"
 end
 
@@ -319,6 +244,6 @@ post "/lists/:list_id/complete" do
   @list = load_list(@list_id)
 
   @storage.complete_todos(@list_id)
-  @storage.set_flash(:todos_completed, :success)
+  set_flash(:todos_completed, :success)
   redirect "/lists/#{params[:list_id]}"
 end
