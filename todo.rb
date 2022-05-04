@@ -57,6 +57,10 @@ def load_list(id)
   redirect "/lists"
 end
 
+def load_todos(list_id)
+  @storage.find_todos(list_id)
+end
+
 # list_name_error: String -> Maybe Symbol
 # Returns an error symbol if the list name is invalid, otherwise returns nil
 def list_name_error(name)
@@ -90,15 +94,7 @@ helpers do
   end
 
   def list_complete?(list)
-    todo_count(list) > 0 && remaining_todo_count(list) == 0
-  end
-
-  def todo_count(list)
-    list[:todos].count
-  end
-
-  def remaining_todo_count(list)
-    list[:todos].count { |todo| !todo[:completed] }
+    list[:todos_count] > 0 && list[:remaining_todos_count] == 0
   end
 
   def sort_lists(lists, &block)
@@ -135,6 +131,7 @@ end
 get "/lists/:list_id" do
   @list_id = params[:list_id].to_i
   @list = load_list(@list_id)
+  @todos = load_todos(@list_id)
 
   erb :list
 end

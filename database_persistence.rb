@@ -20,24 +20,35 @@ class DatabasePersistence
   # List storage
 
   def all_lists
-    sql = "SELECT * FROM lists;"
+    sql = <<~SQL
+          SELECT lists.*,
+                 count(todos.id) AS todos_count,
+                 count(NULLIF(todos.completed, true)) AS remaining_todos_count
+          FROM lists
+            LEFT OUTER JOIN todos
+            ON lists.id = todos.list_id
+          GROUP BY lists.id
+          ORDER BY lists.name;
+          SQL
     result = query(sql)
 
-    result.map do |tuple|
-      list_id = tuple["id"].to_i
-      todos = find_todos(list_id)
-      { id: list_id, name: tuple["name"], todos: todos }
-    end
+    result.map { |tuple| tuple_to_list(tuple) }
   end
 
   def find_list(id)
-    sql = "SELECT * FROM lists WHERE id = $1;"
-    result = query(sql, id)
-    tuple = result.first
-    list_id = tuple["id"].to_i
-    todos = find_todos(list_id)
+    sql = <<~SQL
+    SELECT lists.*,
+           count(todos.id) AS todos_count,
+           count(NULLIF(todos.completed, true)) AS remaining_todos_count
+    FROM lists
+      LEFT OUTER JOIN todos
+      ON lists.id = todos.list_id
+    WHERE lists.id = $1
+    GROUP BY lists.id;
+    SQL
 
-    { id: tuple["id"].to_i, name: tuple["name"], todos: todos }
+    result = query(sql, id)
+    tuple_to_list(result.first)
   end
 
   def create_list(name)
@@ -80,10 +91,6 @@ class DatabasePersistence
     db.close
   end
 
-  private
-
-  attr_reader :db
-
   def find_todos(list_id)
     sql = "SELECT * FROM todos WHERE list_id = $1"
     result = query(sql, list_id)
@@ -94,5 +101,18 @@ class DatabasePersistence
         completed: tuple["completed"] == 't'
       }
     end
+  end
+
+  private
+
+  attr_reader :db
+
+  def tuple_to_list(tuple)
+    {
+      id: tuple["id"].to_i,
+      name: tuple["name"],
+      todos_count: tuple["todos_count"].to_i,
+      remaining_todos_count: tuple["remaining_todos_count"].to_i
+    }
   end
 end
